@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="shortcut icon" href="./favicon.png" type="image/x-icon">
+    <title>3D model - Three.js</title>
+
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+    </style>
+
+  </head>
+  <body>
+    <script src="./three.min.js"></script>
+    <script src="./OrbitControls.js"></script>
+    <script src="./GLTFLoader.js"></script>
+    <script src="./dat.gui.min.js"></script>
+
+    <script>
+
+      let rotatingStarted = false
+      let loadedModel;
+
+
+      const scene = new THREE.Scene();
+
+      const camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        0.1,
+        1000
+      );
+
+      camera.position.set(-4, 8, 8);
+    
+
+      const renderer = new THREE.WebGLRenderer();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      renderer.setClearColor(new THREE.Color("rgb(35,35,35)"));
+      document.body.appendChild(renderer.domElement);
+
+
+      const controls = new THREE.OrbitControls(camera, renderer.domElement);
+
+
+      const light = new THREE.DirectionalLight(0xffffff, 1.4);
+      light.position.set(3, 0, 5);
+      light.target.position.set(0,0,0)
+      scene.add(light);
+
+
+      const lightConfig = {
+        intensity: light.intensity
+      }
+
+      const gui = new dat.GUI();
+      gui.add(lightConfig, "intensity", 0, 4).onChange(() => {
+        light.intensity = lightConfig.intensity;
+      })
+
+      const gridHelper = new THREE.GridHelper(10, 10); // tworzymy siatkę z rozmiarem 10 i podziałką 10
+      scene.add(gridHelper); // dodajemy siatkę do sceny
+
+
+      
+      const planeGeometry = new THREE.PlaneGeometry(18, 18);
+      const planeMaterial = new THREE.MeshBasicMaterial({color: 0x303030, side: THREE.FrontSide});
+      const plane = new THREE.Mesh(planeGeometry, planeMaterial);
+      plane.rotation.x = Math.PI / 2 + Math.PI;
+      plane.position.y = -1;
+      scene.add(plane);
+
+
+      
+      const loader = new THREE.GLTFLoader();
+      loader.load("plik.glb", function (gltf) {
+        loadedModel = gltf.scene;
+        loadedModel.position.set(0,4,0)
+        const axesForModel = new THREE.AxesHelper(2)
+        loadedModel.add (axesForModel)
+        scene.add(loadedModel);
+
+        //kolor pierwotny
+        loadedModel.traverse(function (child) {
+          if (child.isMesh) child.material.color.set(0x00ff00);
+        });
+
+        
+        const raycaster = new THREE.Raycaster();
+        const mouse = new THREE.Vector2();
+
+
+        // zmiana koloru po kliknieciu na model
+        function onMouseDown(event) {
+          mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+          mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+          raycaster.setFromCamera(mouse, camera);
+          let intersectsObj = raycaster.intersectObjects([loadedModel]);
+          if (intersectsObj.length > 0 && intersectsObj[0].object !== axesForModel) {
+            // zmiana koloru
+
+            let objectColor = intersectsObj[0].object.material.color.clone().getHex();
+            if (objectColor == "0x00ff00") {
+              intersectsObj[0].object.material.color.set(0xff0000);
+            } else {
+              intersectsObj[0].object.material.color.set(0x00ff00);
+            }
+            
+
+            rotatingStarted = !rotatingStarted;
+          }
+        }
+        renderer.domElement.addEventListener("mousedown", onMouseDown);
+      });
+
+
+
+
+    const axesHelperGlobal = new THREE.AxesHelper(1);
+      scene.add(axesHelperGlobal);
+
+      
+      function animate() {
+
+        if (rotatingStarted) {
+            // loadedModel.rotation.x += 0.02;
+            loadedModel.rotation.y += 0.02;
+            loadedModel.rotation.z += 0.01;
+        }
+
+        renderer.render(scene, camera);
+        requestAnimationFrame(animate);
+      }
+
+      animate();
+
+
+
+      window.addEventListener("resize", (e) => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      });
+
+
+      
+    </script>
+  </body>
+</html>
